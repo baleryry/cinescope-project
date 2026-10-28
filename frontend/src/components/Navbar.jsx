@@ -43,7 +43,7 @@ export default function Navbar({ onSearch }) {
                             placeholder={
                                 isAiMode 
                                     ? "Describe una escena o personaje (ej: robot que limpia basura y se enamora)..." 
-                                    : "Buscar por tÃ­tulo (ej: Batman, Avengers)..."
+                                    : "Buscar por Nombre o Categoria (ej: Batman, Avengers)..."
                             }
                             className={`w-full bg-zinc-900 border rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none transition ${
                                 isAiMode 

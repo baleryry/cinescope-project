@@ -4,28 +4,28 @@ import { Bookmark, Star } from 'lucide-react';
 export default function MovieCard({ movie, onClick }) {
     if (!movie) return null;
 
-    const title = movie.tmdb?.title || movie.title || 'Sin tÃ­tulo';
+    const title = movie.tmdb?.title || movie.title || 'Sin título';
     const poster = movie.tmdb?.poster || movie.poster;
     const year = movie.tmdb?.year || movie.year || '2026';
     const rating = movie.omdb?.imdbRating || '8.0/10';
     const overview = movie.wikipedia?.summary || movie.tmdb?.overview || movie.overview || '';
 
     return (
-        <div 
+        <div
             onClick={onClick}
             className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden cursor-pointer hover:border-zinc-700 hover:scale-[1.02] transition duration-200 group relative flex flex-col justify-between shadow-lg"
         >
             <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-950">
-                <img 
-                    src={poster} 
-                    alt={title} 
+                <img
+                    src={poster}
+                    alt={title}
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                     loading="lazy"
                 />
                 <span className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md text-[10px] text-zinc-300 px-2 py-0.5 rounded border border-zinc-700/50">
                     Cine
                 </span>
-                <button 
+                <button
                     onClick={(e) => { e.stopPropagation(); }}
                     className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-zinc-400 hover:text-white backdrop-blur-md transition border border-zinc-700/40"
                 >
@@ -54,7 +54,7 @@ export default function MovieCard({ movie, onClick }) {
                         {rating}
                     </span>
                     <span className="text-[11px] text-zinc-400 group-hover:text-zinc-200 transition font-medium">
-                        Ver ficha â†’
+                        Ver ficha →
                     </span>
                 </div>
             </div>
