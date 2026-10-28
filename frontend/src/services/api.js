@@ -1,6 +1,6 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
-const API_BASE_URL = 'https://cinescope-backend.onrender.com/api';
+const API_BASE_URL = 'https://cinescope-backend-jgly.onrender.com/api';
 
 export const fetchMovies = async (searchQuery = '', genre = 'ALL') => {
     try {
@@ -19,7 +19,8 @@ export const searchMoviesWithAI = async (prompt) => {
         const response = await axios.post(`${API_BASE_URL}/movies/ai-search`, { prompt });
         return response.data.data;
     } catch (error) {
-        console.error('Error en la búsqueda con IA:', error);
+        console.error('Error en la bÃºsqueda con IA:', error);
         return [];
     }
 };
+

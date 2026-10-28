@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Search, Film, Sparkles } from 'lucide-react';
 
 export default function Navbar({ onSearch }) {
@@ -33,7 +33,7 @@ export default function Navbar({ onSearch }) {
                     </span>
                 </div>
 
-                {/* Formulario de Búsqueda con Toggle IA */}
+                {/* Formulario de BÃºsqueda con Toggle IA */}
                 <form onSubmit={handleSubmit} className="flex-1 max-w-lg relative flex items-center gap-2">
                     <div className="relative flex-1">
                         <input 
@@ -43,7 +43,7 @@ export default function Navbar({ onSearch }) {
                             placeholder={
                                 isAiMode 
                                     ? "Describe una escena o personaje (ej: robot que limpia basura y se enamora)..." 
-                                    : "Buscar por título (ej: Batman, Avengers)..."
+                                    : "Buscar por tÃ­tulo (ej: Batman, Avengers)..."
                             }
                             className={`w-full bg-zinc-900 border rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none transition ${
                                 isAiMode 

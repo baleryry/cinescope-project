@@ -1,10 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { Bookmark, Star } from 'lucide-react';
 
 export default function MovieCard({ movie, onClick }) {
     if (!movie) return null;
 
-    const title = movie.tmdb?.title || movie.title || 'Sin título';
+    const title = movie.tmdb?.title || movie.title || 'Sin tÃ­tulo';
     const poster = movie.tmdb?.poster || movie.poster;
     const year = movie.tmdb?.year || movie.year || '2026';
     const rating = movie.omdb?.imdbRating || '8.0/10';
@@ -54,7 +54,7 @@ export default function MovieCard({ movie, onClick }) {
                         {rating}
                     </span>
                     <span className="text-[11px] text-zinc-400 group-hover:text-zinc-200 transition font-medium">
-                        Ver ficha →
+                        Ver ficha â†’
                     </span>
                 </div>
             </div>

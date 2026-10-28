@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Pagination({ currentPage, totalPages, onPageChange }) {
@@ -34,7 +34,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
 
     return (
         <div className="flex items-center justify-center gap-1.5 my-8 select-none">
-            {/* Botón Anterior */}
+            {/* BotÃ³n Anterior */}
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
@@ -43,7 +43,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
                 <ChevronLeft className="w-4 h-4" />
             </button>
 
-            {/* Números de página */}
+            {/* NÃºmeros de pÃ¡gina */}
             {getPageNumbers().map((num, idx) => (
                 num === '...' ? (
                     <span key={idx} className="w-10 h-10 flex items-center justify-center text-zinc-500 font-bold">
@@ -64,7 +64,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
                 )
             ))}
 
-            {/* Botón Siguiente */}
+            {/* BotÃ³n Siguiente */}
             <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}

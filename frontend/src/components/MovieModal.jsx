@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { X, Film, Star, Tv, Clock, User, Globe, Ticket } from 'lucide-react';
 
 export default function MovieModal({ movie, onClose }) {
@@ -10,7 +10,7 @@ export default function MovieModal({ movie, onClose }) {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-zinc-900 w-full max-w-4xl max-h-[90vh] rounded-2xl overflow-y-auto border border-zinc-800 relative text-zinc-200 shadow-2xl">
                 
-                {/* Botón Cerrar */}
+                {/* BotÃ³n Cerrar */}
                 <button 
                     onClick={onClose} 
                     className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-800 rounded-full p-2 z-10 transition border border-zinc-700/50"
@@ -45,7 +45,7 @@ export default function MovieModal({ movie, onClose }) {
                     </div>
                 </div>
 
-                {/* Pestañas de Navegación */}
+                {/* PestaÃ±as de NavegaciÃ³n */}
                 <div className="border-b border-zinc-800 bg-zinc-950/60 px-6 flex space-x-6 text-xs font-medium">
                     <button 
                         onClick={() => setActiveTab('tmdb')} 
@@ -65,7 +65,7 @@ export default function MovieModal({ movie, onClose }) {
                                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
                         }`}
                     >
-                        <Star className="w-4 h-4" /> OMDb (Métricas)
+                        <Star className="w-4 h-4" /> OMDb (MÃ©tricas)
                     </button>
                     <button 
                         onClick={() => setActiveTab('streaming')} 
@@ -75,11 +75,11 @@ export default function MovieModal({ movie, onClose }) {
                                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
                         }`}
                     >
-                        <Tv className="w-4 h-4" /> ¿Dónde ver? (Streaming)
+                        <Tv className="w-4 h-4" /> Â¿DÃ³nde ver? (Streaming)
                     </button>
                 </div>
 
-                {/* Contenido de las Pestañas */}
+                {/* Contenido de las PestaÃ±as */}
                 <div className="p-6 text-xs md:text-sm">
                     {/* TMDB / Wikipedia Sinopsis */}
                     {activeTab === 'tmdb' && (
@@ -113,19 +113,19 @@ export default function MovieModal({ movie, onClose }) {
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
                                 <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800 flex flex-col items-center justify-center">
                                     <span className="text-zinc-400 text-[11px] uppercase font-bold mb-1 flex items-center gap-1.5">
-                                        ⭐ IMDb
+                                        â­ IMDb
                                     </span>
                                     <span className="text-amber-400 font-black text-lg">{movie.omdb.imdbRating}</span>
                                 </div>
                                 <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800 flex flex-col items-center justify-center">
                                     <span className="text-zinc-400 text-[11px] uppercase font-bold mb-1 flex items-center gap-1.5">
-                                        🍅 Rotten Tomatoes
+                                        ðŸ… Rotten Tomatoes
                                     </span>
                                     <span className="text-red-400 font-black text-lg">{movie.omdb.rottenTomatoes}</span>
                                 </div>
                                 <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800 flex flex-col items-center justify-center">
                                     <span className="text-zinc-400 text-[11px] uppercase font-bold mb-1 flex items-center gap-1.5">
-                                        🎯 Metacritic
+                                        ðŸŽ¯ Metacritic
                                     </span>
                                     <span className="text-emerald-400 font-black text-lg">{movie.omdb.metascore}</span>
                                 </div>
@@ -133,14 +133,14 @@ export default function MovieModal({ movie, onClose }) {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800 flex items-center gap-3">
-                                    <span className="text-2xl select-none">🏆</span>
+                                    <span className="text-2xl select-none">ðŸ†</span>
                                     <div>
                                         <span className="text-zinc-400 block text-[11px] font-medium">Premios</span>
                                         <span className="font-semibold text-zinc-100 text-xs mt-0.5 block">{movie.omdb.awards}</span>
                                     </div>
                                 </div>
                                 <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800 flex items-center gap-3">
-                                    <span className="text-2xl select-none">💰</span>
+                                    <span className="text-2xl select-none">ðŸ’°</span>
                                     <div>
                                         <span className="text-zinc-400 block text-[11px] font-medium">Taquilla Global</span>
                                         <span className="font-semibold text-zinc-100 text-xs mt-0.5 block">{movie.omdb.boxOffice}</span>
@@ -174,7 +174,7 @@ export default function MovieModal({ movie, onClose }) {
                                     <div className="space-y-1">
                                         <h5 className="font-bold text-zinc-100 text-sm tracking-wide">Solo disponible en cines</h5>
                                         <p className="text-zinc-400 text-xs max-w-sm mx-auto leading-relaxed">
-                                            Esta película se encuentra en cartelera cinematográfica o aún no dispone de licencias de streaming digital para la región.
+                                            Esta pelÃ­cula se encuentra en cartelera cinematogrÃ¡fica o aÃºn no dispone de licencias de streaming digital para la regiÃ³n.
                                         </p>
                                     </div>
                                 </div>

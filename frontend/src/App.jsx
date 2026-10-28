@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import MovieCard from './components/MovieCard';
 import MovieModal from './components/MovieModal';
@@ -16,7 +16,7 @@ export default function App() {
     const fetchMovies = async (query = '', page = 1, ai = false) => {
         setLoading(true);
         try {
-            const res = await fetch(`https://cinescope-backend.onrender.com/api/movies?query=${encodeURIComponent(query)}&page=${page}&ai=${ai}`);
+            const res = await fetch(`https://cinescope-backend-jgly.onrender.com/api/movies?query=${encodeURIComponent(query)}&page=${page}&ai=${ai}`);
             const data = await res.json();
             if (data.success) {
                 setMovies(data.data || []);
@@ -53,22 +53,22 @@ export default function App() {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                        Catálogo Cinematográfico
+                        CatÃ¡logo CinematogrÃ¡fico
                         {isAiMode && (
                             <span className="text-xs bg-purple-950/80 text-purple-300 border border-purple-800/80 px-2.5 py-0.5 rounded-full font-normal">
-                                Búsqueda IA Activada
+                                BÃºsqueda IA Activada
                             </span>
                         )}
                     </h1>
                     <span className="text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full font-mono">
-                        Página {currentPage} de {totalPages}
+                        PÃ¡gina {currentPage} de {totalPages}
                     </span>
                 </div>
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20 text-zinc-400 text-sm space-y-3">
                         <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p>{isAiMode ? 'La IA está analizando tu escena...' : 'Cargando catálogo...'}</p>
+                        <p>{isAiMode ? 'La IA estÃ¡ analizando tu escena...' : 'Cargando catÃ¡logo...'}</p>
                     </div>
                 ) : (
                     <>
@@ -100,3 +100,4 @@ export default function App() {
         </div>
     );
 }
+
