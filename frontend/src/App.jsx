@@ -16,7 +16,7 @@ export default function App() {
     const fetchMovies = async (query = '', page = 1, ai = false) => {
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/api/movies?query=${encodeURIComponent(query)}&page=${page}&ai=${ai}`);
+            const res = await fetch(`https://cinescope-backend.onrender.com/api/movies?query=${encodeURIComponent(query)}&page=${page}&ai=${ai}`);
             const data = await res.json();
             if (data.success) {
                 setMovies(data.data || []);
