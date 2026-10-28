@@ -1,0 +1,25 @@
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:5000/api';
+
+export const fetchMovies = async (searchQuery = '', genre = 'ALL') => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/movies`, {
+            params: { query: searchQuery, genre }
+        });
+        return response.data.data;
+    } catch (error) {
+        console.error('Error al conectar con el servidor:', error);
+        return [];
+    }
+};
+
+export const searchMoviesWithAI = async (prompt) => {
+    try {
+        const response = await axios.post(`${API_BASE_URL}/movies/ai-search`, { prompt });
+        return response.data.data;
+    } catch (error) {
+        console.error('Error en la búsqueda con IA:', error);
+        return [];
+    }
+};
