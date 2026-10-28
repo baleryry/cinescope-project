@@ -1,19 +1,29 @@
+
 import { Router } from 'express';
 import axios from 'axios';
 
-const router = Router();
 axios.defaults.timeout = 8000;
 
-// Convierte una descripción de película en un título mediante Gemini.
+const router = Router();
+
+// Identificar películas mediante Gemini
 async function traducirEscenaATitulo(descripcion, apiKey, intento = 1) {
-    const prompt = `El usuario describe una escena, personaje o trama de una película: "${descripcion}". Identifica la película y responde ÚNICAMENTE con su título comercial, sin año, comillas ni explicaciones. Si no puedes identificarla, responde NO_IDENTIFICADA.`;
+    const prompt = `Identifica la película descrita: "${descripcion}". Responde únicamente con el título oficial, sin explicaciones, comillas ni año.`;
 
     try {
         const respuesta = await axios.post(
             'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
             {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { thinkingConfig: { thinkingBudget: 0 } }
+                contents: [
+                    {
+                        parts: [{ text: prompt }]
+                    }
+                ],
+                generationConfig: {
+                    thinkingConfig: {
+                        thinkingBudget: 0
+                    }
+                }
             },
             {
                 headers: {
@@ -25,219 +35,428 @@ async function traducirEscenaATitulo(descripcion, apiKey, intento = 1) {
         );
 
         const partes = respuesta.data?.candidates?.[0]?.content?.parts || [];
-        const titulo = partes.filter(p => typeof p.text === 'string' && !p.thought)
-            .map(p => p.text).join(' ').split('\n')[0]
-            .replace(/\(?\b\d{4}\b\)?/g, '')
-            .replace(/['"*_.]/g, '').trim();
+        const titulo = partes
+            .filter(p => !p.thought && p.text)
+            .map(p => p.text)
+            .join(' ')
+            .trim();
 
-        return titulo && titulo !== 'NO_IDENTIFICADA' ? titulo : null;
+        return titulo
+            ? titulo.split('\n')[0].replace(/["*]/g, '').trim()
+            : null;
+
     } catch (error) {
-        const estado = error.response?.status;
-        const mensaje = error.response?.data?.error?.message || error.message;
-        if (intento === 1 && (estado === 429 || estado === 503 || error.code === 'ECONNABORTED')) {
-            console.warn('⚠️ [CineScope IA] Reintentando una vez:', mensaje);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        const status = error.response?.status;
+
+        if ((status === 429 || error.code === 'ECONNABORTED') && intento === 1) {
+            console.log('Gemini: reintentando solicitud...');
             return traducirEscenaATitulo(descripcion, apiKey, 2);
         }
-        throw error;
+
+        console.error(
+            'Error en Gemini IA:',
+            status,
+            error.response?.data?.error?.message || error.message
+        );
+
+        return null;
     }
 }
 
+// Obtener enlaces de Watchmode
+async function obtenerWatchmode(imdbId, apiKey) {
+    if (!imdbId || !apiKey) return [];
+
+    try {
+        const respuesta = await axios.get(
+            `https://api.watchmode.com/v1/title/${encodeURIComponent(imdbId)}/sources/`,
+            {
+                params: { apiKey }
+            }
+        );
+
+        const fuentes = Array.isArray(respuesta.data)
+            ? respuesta.data
+            : [];
+
+        const unicos = new Map();
+
+        for (const fuente of fuentes) {
+            const identificador = `${fuente.name}-${fuente.type}`;
+
+            if (!unicos.has(identificador)) {
+                unicos.set(identificador, {
+                    name: fuente.name,
+                    type: fuente.type,
+                    region: fuente.region || null,
+                    webUrl: fuente.web_url || null,
+                    logo: fuente.source_id
+                        ? `https://cdn.watchmode.com/posters/small/${fuente.source_id}.png`
+                        : null
+                });
+            }
+        }
+
+        return Array.from(unicos.values());
+
+    } catch (error) {
+        console.log(
+            'Watchmode:',
+            error.response?.status || error.message
+        );
+        return [];
+    }
+}
+
+// Obtener plataformas desde TMDB
+function obtenerPlataformasTMDB(detalles) {
+    const resultados = detalles?.['watch/providers']?.results || {};
+
+    // Mostrar solo disponibilidad conocida en Perú
+    const region = resultados.PE;
+
+    if (!region) return [];
+
+    const opciones = [
+        ...(region.flatrate || []).map(p => ({
+            ...p,
+            type: 'subscription'
+        })),
+        ...(region.free || []).map(p => ({
+            ...p,
+            type: 'free'
+        })),
+        ...(region.ads || []).map(p => ({
+            ...p,
+            type: 'ads'
+        })),
+        ...(region.rent || []).map(p => ({
+            ...p,
+            type: 'rent'
+        })),
+        ...(region.buy || []).map(p => ({
+            ...p,
+            type: 'buy'
+        }))
+    ];
+
+    const unicos = new Map();
+
+    for (const p of opciones) {
+        const id = `${p.provider_id}-${p.type}`;
+
+        if (!unicos.has(id)) {
+            unicos.set(id, {
+                name: p.provider_name,
+                type: p.type,
+                region: 'PE',
+                logo: p.logo_path
+                    ? `https://image.tmdb.org/t/p/original${p.logo_path}`
+                    : null,
+                // Página de disponibilidad de la película
+                webUrl: region.link || null
+            });
+        }
+    }
+
+    return Array.from(unicos.values());
+}
+
+// Ruta principal de películas
 router.get('/', async (req, res) => {
-    const { query = '', page = 1, ai = 'false' } = req.query;
+    const {
+        query = '',
+        page = '1',
+        ai = 'false'
+    } = req.query;
+
     const TMDB_KEY = process.env.TMDB_API_KEY;
     const OMDB_KEY = process.env.OMDB_API_KEY;
     const WATCHMODE_KEY = process.env.WATCHMODE_API_KEY;
     const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
     if (!TMDB_KEY) {
-        console.error('❌ Falta TMDB_API_KEY en Render → Environment');
-        return res.status(500).json({ success: false, data: [], error: 'Falta configuración de TMDB' });
+        return res.status(500).json({
+            success: false,
+            error: 'TMDB_API_KEY no configurada',
+            data: []
+        });
     }
 
     try {
         const rawQuery = String(query).trim();
         let searchQuery = rawQuery;
-        const pagina = Math.max(1, Number.parseInt(page, 10) || 1);
-        const usarIA = String(ai) === 'true' && rawQuery !== '';
 
-        if (usarIA) {
-            if (!GEMINI_KEY) {
-                console.error('❌ [CineScope IA] Falta GEMINI_API_KEY en Render → Environment');
+        const usarIA =
+            (String(ai) === 'true' ||
+                rawQuery.split(/\s+/).length >= 4) &&
+            rawQuery !== '';
+
+        // Búsqueda inteligente
+        if (usarIA && GEMINI_KEY) {
+            console.log('[CineScope IA] Analizando:', rawQuery);
+
+            const titulo = await traducirEscenaATitulo(
+                rawQuery,
+                GEMINI_KEY
+            );
+
+            if (titulo) {
+                console.log('[CineScope IA] Película identificada:', titulo);
+                searchQuery = titulo;
             } else {
-                console.log(`🔍 [CineScope IA] Analizando búsqueda: "${rawQuery}"`);
-                try {
-                    const titulo = await traducirEscenaATitulo(rawQuery, GEMINI_KEY);
-                    if (titulo) {
-                        searchQuery = titulo;
-                        console.log(`✅ [CineScope IA] Película identificada: "${titulo}"`);
-                    } else {
-                        console.warn('⚠️ [CineScope IA] No se identificó una película; usando búsqueda normal.');
-                    }
-                } catch (error) {
-                    console.error('❌ Error en Gemini IA:', error.response?.status, error.response?.data?.error?.message || error.message);
-                    console.log('🔄 Buscando en TMDB sin IA como respaldo.');
-                }
+                console.log('[CineScope IA] Usando búsqueda normal');
             }
         }
 
-        const tmdbUrl = searchQuery
+        const numeroPagina = Math.max(
+            1,
+            Math.floor(Number(page) || 1)
+        );
+
+        const urlTMDB = searchQuery
             ? 'https://api.themoviedb.org/3/search/movie'
             : 'https://api.themoviedb.org/3/movie/popular';
-        const tmdbRes = await axios.get(tmdbUrl, {
+
+        const respuestaTMDB = await axios.get(urlTMDB, {
             params: {
                 api_key: TMDB_KEY,
                 language: 'es-ES',
-                page: pagina,
+                page: numeroPagina,
                 ...(searchQuery ? { query: searchQuery } : {})
             }
         });
 
-        const rawMovies = tmdbRes.data.results || [];
-        const totalPages = Math.min(tmdbRes.data.total_pages || 1, 500);
+        const peliculas = respuestaTMDB.data.results || [];
 
-        const enrichedMovies = await Promise.all(rawMovies.map(async (movie) => {
-            let cast = [];
-            let director = 'No especificado';
-            let imdbId = null;
-            let watchProviders = [];
-            let detailData = {};
+        const totalPages = Math.min(
+            respuestaTMDB.data.total_pages || 1,
+            500
+        );
 
-            try {
-                const detailRes = await axios.get(`https://api.themoviedb.org/3/movie/${movie.id}`, {
-                    params: {
-                        api_key: TMDB_KEY,
-                        language: 'es-ES',
-                        append_to_response: 'credits,external_ids,watch/providers'
-                    }
-                });
-                detailData = detailRes.data || {};
-                if (detailData.credits) {
-                    cast = (detailData.credits.cast || []).slice(0, 4).map(c => ({
-                        name: c.name, role: c.character
-                    }));
-                    const persona = (detailData.credits.crew || []).find(c => c.job === 'Director');
-                    if (persona) director = persona.name;
-                }
-                imdbId = detailData.external_ids?.imdb_id || null;
-            } catch (error) {
-                console.warn(`TMDB detalle ${movie.id}:`, error.message);
-            }
+        // Enriquecer cada película
+        const resultados = await Promise.all(
+            peliculas.map(async (pelicula) => {
+                let detalles = {};
+                let reparto = [];
+                let director = 'No especificado';
+                let imdbId = null;
 
-            let boxOfficeFormatted = detailData.revenue > 0
-                ? `$${detailData.revenue.toLocaleString('en-US')} USD`
-                : 'En cartelera / Pendiente';
-            let imdbRating = `${movie.vote_average ? movie.vote_average.toFixed(1) : 'N/D'}/10`;
-            let rottenTomatoes = 'N/D';
-            let metascore = 'N/D';
-            let awards = 'Sin datos de premios';
-
-            if (OMDB_KEY && OMDB_KEY !== 'tu_clave_de_omdb_aqui') {
+                // Detalles de TMDB
                 try {
-                    const params = imdbId
-                        ? { apikey: OMDB_KEY, i: imdbId }
-                        : { apikey: OMDB_KEY, t: movie.original_title || movie.title };
-                    const omdbRes = await axios.get('https://www.omdbapi.com/', { params });
-                    if (omdbRes.data.Response === 'True') {
-                        const info = omdbRes.data;
-                        const rt = (info.Ratings || []).find(r => r.Source === 'Rotten Tomatoes');
-                        if (info.imdbRating && info.imdbRating !== 'N/A') imdbRating = `${info.imdbRating}/10`;
-                        if (rt?.Value) rottenTomatoes = rt.Value;
-                        if (info.Metascore && info.Metascore !== 'N/A') metascore = `${info.Metascore}/100`;
-                        if (info.Awards && info.Awards !== 'N/A') awards = info.Awards;
-                        if (info.BoxOffice && info.BoxOffice !== 'N/A' && boxOfficeFormatted === 'En cartelera / Pendiente') boxOfficeFormatted = info.BoxOffice;
-                    }
-                } catch (error) {
-                    console.warn(`OMDb ${movie.id}:`, error.message);
-                }
-            }
-
-            if (WATCHMODE_KEY && WATCHMODE_KEY !== 'tu_clave_de_watchmode' && imdbId) {
-                try {
-                    const wmRes = await axios.get(`https://api.watchmode.com/v1/title/${imdbId}/sources/`, {
-                        params: { apiKey: WATCHMODE_KEY }
-                    });
-                    if (Array.isArray(wmRes.data)) {
-                        const mapa = new Map();
-                        wmRes.data.forEach(source => {
-                            if (source.name && !mapa.has(source.name)) {
-                                mapa.set(source.name, {
-                                    name: source.name,
-                                    type: source.type,
-                                    webUrl: source.web_url,
-                                    logo: `https://cdn.watchmode.com/posters/small/${source.source_id}.png`
-                                });
+                    const respuesta = await axios.get(
+                        `https://api.themoviedb.org/3/movie/${pelicula.id}`,
+                        {
+                            params: {
+                                api_key: TMDB_KEY,
+                                language: 'es-ES',
+                                append_to_response:
+                                    'credits,external_ids,watch/providers'
                             }
-                        });
-                        watchProviders = Array.from(mapa.values());
+                        }
+                    );
+
+                    detalles = respuesta.data || {};
+
+                    reparto = (detalles.credits?.cast || [])
+                        .slice(0, 4)
+                        .map(actor => ({
+                            name: actor.name,
+                            role: actor.character
+                        }));
+
+                    const directorEncontrado =
+                        detalles.credits?.crew?.find(
+                            persona => persona.job === 'Director'
+                        );
+
+                    director = directorEncontrado?.name ||
+                        'No especificado';
+
+                    imdbId = detalles.external_ids?.imdb_id ||
+                        detalles.imdb_id || null;
+
+                } catch (error) {
+                    console.log('Error detalle TMDB:', pelicula.id);
+                }
+
+                // Métricas iniciales
+                let imdbRating = pelicula.vote_average
+                    ? `${pelicula.vote_average.toFixed(1)}/10`
+                    : 'N/D';
+
+                let rottenTomatoes = 'N/D';
+                let metascore = 'N/D';
+                let awards = 'No disponible';
+
+                let boxOffice = detalles.revenue > 0
+                    ? `$${detalles.revenue.toLocaleString('en-US')} USD`
+                    : 'No disponible';
+
+                // OMDb
+                if (OMDB_KEY) {
+                    try {
+                        const respuesta = await axios.get(
+                            'https://www.omdbapi.com/',
+                            {
+                                params: imdbId
+                                    ? { apikey: OMDB_KEY, i: imdbId }
+                                    : {
+                                        apikey: OMDB_KEY,
+                                        t: pelicula.original_title
+                                    }
+                            }
+                        );
+
+                        const omdb = respuesta.data;
+
+                        if (omdb.Response === 'True') {
+                            if (omdb.imdbRating &&
+                                omdb.imdbRating !== 'N/A') {
+                                imdbRating = `${omdb.imdbRating}/10`;
+                            }
+
+                            const rt = (omdb.Ratings || []).find(
+                                r => r.Source === 'Rotten Tomatoes'
+                            );
+
+                            rottenTomatoes = rt?.Value || 'N/D';
+
+                            metascore = omdb.Metascore &&
+                                omdb.Metascore !== 'N/A'
+                                ? `${omdb.Metascore}/100`
+                                : 'N/D';
+
+                            awards = omdb.Awards &&
+                                omdb.Awards !== 'N/A'
+                                ? omdb.Awards
+                                : awards;
+
+                            if (omdb.BoxOffice &&
+                                omdb.BoxOffice !== 'N/A') {
+                                boxOffice = omdb.BoxOffice;
+                            }
+                        }
+                    } catch (error) {
+                        console.log('OMDb no disponible');
+                    }
+                }
+
+                // Streaming
+                let plataformas = [];
+
+                if (WATCHMODE_KEY && imdbId) {
+                    plataformas = await obtenerWatchmode(
+                        imdbId,
+                        WATCHMODE_KEY
+                    );
+                }
+
+                // Respaldo TMDB
+                const plataformasTMDB =
+                    obtenerPlataformasTMDB(detalles);
+
+                if (plataformas.length === 0) {
+                    plataformas = plataformasTMDB;
+                } else {
+                    // Añadir plataformas de TMDB que no estén
+                    // entre los resultados de Watchmode
+                    const nombres = new Set(
+                        plataformas.map(p => p.name.toLowerCase())
+                    );
+
+                    for (const p of plataformasTMDB) {
+                        if (!nombres.has(p.name.toLowerCase())) {
+                            plataformas.push(p);
+                        }
+                    }
+                }
+
+                // Wikipedia
+                let sinopsis = pelicula.overview ||
+                    'Sinopsis no disponible.';
+
+                let wikiUrl = null;
+
+                try {
+                    const wiki = await axios.get(
+                        `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pelicula.title)}`
+                    );
+
+                    if (wiki.data?.extract) {
+                        sinopsis = wiki.data.extract;
+                        wikiUrl = wiki.data.content_urls?.desktop?.page || null;
                     }
                 } catch (error) {
-                    console.warn(`Watchmode ${movie.id}:`, error.message);
+                    // Mantener sinopsis de TMDB
                 }
-            }
 
-            if (watchProviders.length === 0 && detailData['watch/providers']) {
-                const results = detailData['watch/providers'].results;
-                const regionData = results?.PE || results?.US || results?.ES;
-                if (regionData) {
-                    const allProviders = [
-                        ...(regionData.flatrate || []),
-                        ...(regionData.rent || []),
-                        ...(regionData.buy || [])
-                    ];
-                    const unique = Array.from(new Map(allProviders.map(p => [p.provider_id, p])).values());
-                    watchProviders = unique.map(p => ({
-                        name: p.provider_name,
-                        logo: `https://image.tmdb.org/t/p/original${p.logo_path}`
-                    }));
-                }
-            }
+                return {
+                    id: `tmdb-${pelicula.id}`,
 
-            const wikipediaData = {
-                summary: movie.overview || 'Sinopsis oficial disponible.',
-                wikiUrl: `https://es.wikipedia.org/wiki/${encodeURIComponent(movie.title)}`
-            };
-            try {
-                const wikiRes = await axios.get(`https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(movie.title)}`);
-                if (wikiRes.data?.extract) wikipediaData.summary = wikiRes.data.extract;
-            } catch (error) {
-                // Conservamos la sinopsis de TMDB.
-            }
+                    tmdb: {
+                        title: pelicula.title,
+                        year: pelicula.release_date
+                            ? pelicula.release_date.slice(0, 4)
+                            : 'N/D',
+                        genre: 'Cine',
+                        tagline: detalles.tagline ||
+                            pelicula.original_title,
+                        overview: pelicula.overview,
+                        poster: pelicula.poster_path
+                            ? `https://image.tmdb.org/t/p/w500${pelicula.poster_path}`
+                            : 'https://placehold.co/500x750/18181b/f4f4f5?text=Poster',
+                        director,
+                        runtime: detalles.runtime
+                            ? `${detalles.runtime} min`
+                            : 'N/D',
+                        cast: reparto.length > 0
+                            ? reparto
+                            : [{
+                                name: 'Elenco principal',
+                                role: 'Reparto'
+                            }]
+                    },
 
-            return {
-                id: `tmdb-${movie.id}`,
-                tmdb: {
-                    title: movie.title,
-                    year: movie.release_date ? movie.release_date.substring(0, 4) : 'Sin fecha',
-                    genre: 'Cine',
-                    tagline: movie.original_title,
-                    overview: wikipediaData.summary || movie.overview,
-                    poster: movie.poster_path
-                        ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-                        : 'https://placehold.co/500x750/18181b/f4f4f5?text=Poster',
-                    director,
-                    runtime: detailData.runtime ? `${detailData.runtime} min` : 'No disponible',
-                    cast: cast.length ? cast : [{ name: 'Elenco Principal', role: 'Reparto' }]
-                },
-                omdb: {
-                    imdbRating, rottenTomatoes, metascore, awards,
-                    boxOffice: boxOfficeFormatted
-                },
-                wikipedia: wikipediaData,
-                providers: watchProviders
-            };
-        }));
+                    omdb: {
+                        imdbRating,
+                        rottenTomatoes,
+                        metascore,
+                        awards,
+                        boxOffice
+                    },
 
-        res.json({
+                    wikipedia: {
+                        summary: sinopsis,
+                        wikiUrl
+                    },
+
+                    providers: plataformas
+                };
+            })
+        );
+
+        return res.json({
             success: true,
-            page: pagina,
+            page: numeroPagina,
             totalPages,
-            count: enrichedMovies.length,
-            data: enrichedMovies
+            count: resultados.length,
+            data: resultados
         });
+
     } catch (error) {
-        console.error('❌ Error en backend TMDB:', error.response?.data || error.message);
-        res.status(502).json({ success: false, page: 1, totalPages: 1, data: [] });
+        console.error(
+            'Error en CineScope:',
+            error.response?.data || error.message
+        );
+
+        return res.status(500).json({
+            success: false,
+            page: 1,
+            totalPages: 1,
+            data: [],
+            error: 'No se pudieron obtener las películas'
+        });
     }
 });
 
