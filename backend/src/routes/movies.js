@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import axios from 'axios';
+axios.defaults.timeout = 8000;
 
 const router = Router();
 
